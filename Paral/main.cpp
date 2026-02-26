@@ -1,87 +1,79 @@
-#include <vector>
-#include <chrono>
-#include <iostream>
+#include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
+#include <omp.h>
 
 #define N 20000
 
-std::vector<std::vector<int>> a(N, std::vector<int>(N));
+int a[N][N];
 
-int main()
-{
-	int i, j;
-	int k = 0;
-	
-	auto start = std::chrono::system_clock::now();
+int main() {
+#if defined(_OPENMP)
+    printf("Hello, OpenMP v.%d!\n", _OPENMP);
+#else
+    printf("OpenMP not supported!\n");
+    return -1;
+#endif
 
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < N; j++) {
-			a[i][j] = 0;
-		}
-	}
+    for (int num_threads = 1; num_threads < 13; num_threads++) {
+        omp_set_num_threads(num_threads);
+        printf("=============%d threads=============\n", num_threads);
 
-	auto end = std::chrono::system_clock::now();
+        double start, end, t;
 
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms - null" << std::endl;
+        //заполнение нулями по строкам
+        start = omp_get_wtime();
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                a[i][j] = 0;
+            }
+        }
+        end = omp_get_wtime();
+        t = end - start;
+        printf("null time (raw): %.2lg seconds\n", t);
 
-	start = std::chrono::system_clock::now();
+        //заполнение нулями по столбцам
+        start = omp_get_wtime();
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                a[j][i] = 0;
+            }
+        }
+        end = omp_get_wtime();
+        t = end - start;
+        printf("null time (column): %.2lg seconds\n", t);
 
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < N; j++) {
-			a[i][j] = k++;
-		}
-	}
+        //заполнение по возрастанию по строкам
+        start = omp_get_wtime();
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < N; i++) {
+            int k = i * N;
+            for (int j = 0; j < N; j++) {
+                a[i][j] = k++;
+            }
+        }
+        end = omp_get_wtime();
+        t = end - start;
+        printf("sequence time (raw): %.2lg seconds\n", t);
 
-	end = std::chrono::system_clock::now();
+        //заполнение по возрастанию по столбцам
+        start = omp_get_wtime();
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < N; i++) {
+            int k = i;
+            for (int j = 0; j < N; j++) {
+                a[j][i] = k;
+                k += N;
+            }
+        }
+        end = omp_get_wtime();
+        t = end - start;
+        printf("sequence time (column): %.2lg seconds\n", t);
 
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms - sequence" << std::endl;
+        printf("\n");
+    }
 
-	start = std::chrono::system_clock::now();
-
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < N; j++) {
-			a[i][j] = rand();
-		}
-	}
-
-	end = std::chrono::system_clock::now();
-
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms - rand" << std::endl;
-
-	start = std::chrono::system_clock::now();
-
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < N; j++) {
-			a[j][i] = 0;
-		}
-	}
-
-	end = std::chrono::system_clock::now();
-
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms - null column" << std::endl;
-
-	start = std::chrono::system_clock::now();
-	k = 0;
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < N; j++) {
-			a[j][i] = k++;
-		}
-	}
-
-	end = std::chrono::system_clock::now();
-
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms - sequence column" << std::endl;
-
-	start = std::chrono::system_clock::now();
-
-	for (i = 0; i < N; i++) {
-		for (j = 0; j < N; j++) {
-			a[j][i] = rand();
-		}
-	}
-
-	end = std::chrono::system_clock::now();
-
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms - rand column" << std::endl;
-	
-	return 0;
+    return 0;
 }
