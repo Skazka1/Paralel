@@ -5,10 +5,12 @@
 #define N 20000
 
 std::vector<std::vector<int>> a(N, std::vector<int>(N));
-
 int main()
 {
 	int i, j;
+	for (int i = 0; i < N; i++)
+		for (int j = 0; j < N; j++)
+			a[i][j] = 0;
 	int k = 0;
 	
 	auto start = std::chrono::system_clock::now();
