@@ -15,7 +15,11 @@ int main() {
     printf("OpenMP not supported!\n");
     return -1;
 #endif
-
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            a[i][j] = 0;
+        }
+    }
     for (int num_threads = 1; num_threads < 13; num_threads++) {
         omp_set_num_threads(num_threads);
         printf("%d threads\n", num_threads);
