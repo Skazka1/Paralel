@@ -1,118 +1,82 @@
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
+#include <windows.h>
 #include <omp.h>
 
-#define N 20000
+#define N 22000
+#define L 12
+
+#define SCHD_OPT static, 50
+//#define SCHD_OPT dynamic, 50
+//#define SCHD_OPT guided, 100
 
 int a[N][N];
 
-int main() {
+int main()
+{
+    int i, j, k = 1;
+    int quantity_par[L] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+    int threads;
 
-#if defined(_OPENMP)
-    printf("Hello, OpenMP v.%d!\n", _OPENMP);
-#else
-    printf("OpenMP not supported!\n");
-    return -1;
-#endif
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
+    double time;
+    double end_time;
+    time = omp_get_wtime();
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
             a[i][j] = 0;
-        }
+    end_time = omp_get_wtime();
+    printf("Zapolnenie nulyami dlya vydeleniya fizicheskoy pamyati: %lf\n", end_time - time);
+
+    printf("\n");
+
+    printf("------------------------------------------------\n");
+    for (int y = 0; y < L; y++) {
+        threads = quantity_par[y];
+        omp_set_num_threads(threads);
+
+        time = omp_get_wtime();
+#pragma omp parallel for schedule(SCHD_OPT)
+        for (int i = 0; i < N; i++)
+            for (int j = 0; j < N; j++)
+                a[i][j] = rand();
+        end_time = omp_get_wtime();
+
+        printf("Potokov: %2d | Vremya: %f sec\n", threads, end_time - time);
     }
-    for (int num_threads = 1; num_threads < 13; num_threads++) {
-        omp_set_num_threads(num_threads);
-        printf("%d threads\n", num_threads);
+    printf("\n");
 
-        double start, end, t;
+    printf("-------------------------------------------------\n");
+    for (int y = 0; y < L; y++) {
+        threads = quantity_par[y];
+        omp_set_num_threads(threads);
 
-        // заполнение нулями по строкам
-        start = omp_get_wtime();
-        #pragma omp parallel
-        {
-            int tid = omp_get_thread_num();
-            int total_threads = omp_get_num_threads();
+        time = omp_get_wtime();
+#pragma omp parallel
+        for (int i = 0; i < N; i++)
+#pragma omp for schedule(SCHD_OPT)
+            for (int j = 0; j < N; j++)
+                a[i][j] = rand();
+        end_time = omp_get_wtime();
 
-            int rows_per_thread = N / total_threads;
-            int start_row = tid * rows_per_thread;
-            int end_row = (tid == total_threads - 1) ? N : start_row + rows_per_thread;
+        printf("Potokov: %2d | Vremya: %f sec\n", threads, end_time - time);
+    }
+    printf("\n");
 
-            for (int i = start_row; i < end_row; i++) {
-                for (int j = 0; j < N; j++) {
-                    a[i][j] = 0;
-                }
-            }
-        }
-        end = omp_get_wtime();
-        t = end - start;
-        printf("null time (raw): %.2lg seconds\n", t);
+    // Collapse
+    printf("COLLAPSE(2) (obedinenie ciklov):\n");
+    printf("-------------------------------\n");
+    for (int y = 0; y < L; y++) {
+        threads = quantity_par[y];
+        omp_set_num_threads(threads);
 
-        // заполнение нулями по столбцам
-        start = omp_get_wtime();
-        #pragma omp parallel
-        {
-            int tid = omp_get_thread_num();
-            int total_threads = omp_get_num_threads();
+        time = omp_get_wtime();
+#pragma omp parallel for collapse(2) schedule(SCHD_OPT)
+        for (int i = 0; i < N; i++)
+            for (int j = 0; j < N; j++)
+                a[i][j] = rand();
+        end_time = omp_get_wtime();
 
-            int columns_per_thread = N / total_threads;
-            int start_column = tid * columns_per_thread;
-            int end_column = (tid == total_threads - 1) ? N : start_column + columns_per_thread;
-
-            for (int i = start_column; i < end_column; i++) {
-                for (int j = 0; j < N; j++) {
-                    a[j][i] = 0;
-                }
-            }
-        }
-        end = omp_get_wtime();
-        t = end - start;
-        printf("null time (column): %.2lg seconds\n", t);
-
-        // заполнение по возрастанию по строкам
-        start = omp_get_wtime();
-        #pragma omp parallel
-        {
-            int tid = omp_get_thread_num();
-            int total_threads = omp_get_num_threads();
-
-            int rows_per_thread = N / total_threads;
-            int start_row = tid * rows_per_thread;
-            int end_row = (tid == total_threads - 1) ? N : start_row + rows_per_thread;
-
-            int k = start_row * N;
-            for (int i = start_row; i < end_row; i++) {
-                for (int j = 0; j < N; j++) {
-                    a[i][j] = k++;
-                }
-            }
-        }
-        end = omp_get_wtime();
-        t = end - start;
-        printf("sequence time (raw): %.2lg seconds\n", t);
-
-        // заполнение по возрастанию по столбцам
-        start = omp_get_wtime();
-        #pragma omp parallel
-        {
-            int tid = omp_get_thread_num();
-            int total_threads = omp_get_num_threads();
-
-            int columns_per_thread = N / total_threads;
-            int start_column = tid * columns_per_thread;
-            int end_column = (tid == total_threads - 1) ? N : start_column + columns_per_thread;
-
-            int k = start_column * N;
-            for (int i = start_column; i < end_column; i++) {
-                for (int j = 0; j < N; j++) {
-                    a[j][i] = k++;
-                }
-            }
-        }
-        end = omp_get_wtime();
-        t = end - start;
-        printf("sequence time (column): %.2lg seconds\n", t);
-
-        printf("\n");
+        printf("Potokov: %2d | Vremya: %f sec\n", threads, end_time - time);
     }
 
     return 0;
