@@ -7,8 +7,6 @@
 #define L 12
 
 #define SCHD_OPT static, 50
-//#define SCHD_OPT dynamic, 50
-//#define SCHD_OPT guided, 100
 
 int a[N][N];
 
@@ -26,6 +24,12 @@ int main()
             a[i][j] = 0;
     end_time = omp_get_wtime();
     printf("Zapolnenie nulyami dlya vydeleniya fizicheskoy pamyati: %lf\n", end_time - time);
+    time = omp_get_wtime();
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            a[i][j] = 0;
+    end_time = omp_get_wtime();
+    printf("Zapolnenie nulyami : %lf\n", end_time - time);
 
     printf("\n");
 
@@ -62,8 +66,6 @@ int main()
     }
     printf("\n");
 
-    // Collapse
-    printf("COLLAPSE(2) (obedinenie ciklov):\n");
     printf("-------------------------------\n");
     for (int y = 0; y < L; y++) {
         threads = quantity_par[y];
