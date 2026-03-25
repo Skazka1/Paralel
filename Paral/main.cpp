@@ -1,7 +1,4 @@
-﻿//------------------------------------------------------------
-// Программа решения уравнений Пуассона методом Гаусса-Зейделя
-//------------------------------------------------------------
-#include <iostream>
+﻿#include <iostream>
 #include <iomanip>
 #include <cstdlib>
 #include <cmath>
@@ -10,20 +7,19 @@
 
 using namespace std;
 
-// Функции решения уравнения (результаты всех версий должны быть идентичны!)
+
 int Calc_ser(double** u, double** f, int N, double eps);  // последовательная
 int Calc_blk(double** u, double** f, int N, double eps);  // блочная последовательная
 int Calc_par(double** u, double** f, int N, double eps);  // параллельная (блочная)
+int Calc_par_tasks(double** u, double** f, int N, double eps);  // параллельная (блочная) с задачами
 
-// Инициализация массивов
+
 void Init(double** u, double** f, int N);
 double** new_arr(int N);
 void delete_arr(double** arr, int N);
-
-// Вывод части массива для контроля
 void Output(double** u, int N);
 
-// Функция сравнения результатов
+
 bool CompareResults(double** u1, double** u2, int N, double tolerance = 1e-8);
 
 
@@ -32,7 +28,7 @@ int main(int argc, char** argv)
     double** u = NULL, ** f = NULL;
 
     const int N = 5000;        // Количество точек сетки по каждой размерности
-    const double eps = 0.01;   // Точность вычислений
+    const double eps = 0.001;   // Точность вычислений
     int icnt;                    // Количество итераций
     double stime;                // Время решения
     double start_time, end_time;
@@ -40,28 +36,27 @@ int main(int argc, char** argv)
     f = new_arr(N);              // Выделение памяти под правую часть значений уравнения
     u = new_arr(N + 2);          // Выделение памяти под неизвестные и краевые условия
 
-    // Создадим отдельные массивы для каждой версии, чтобы результаты не влияли друг на друга
+
     double** u_ser = new_arr(N + 2);
     double** u_blk = new_arr(N + 2);
     double** u_par = new_arr(N + 2);
+    double** u_par_tasks = new_arr(N + 2);
 
     //  Последовательная реализация
     cout << "\n\t*** Posledovatelnaya versiya ***\n";
-    Init(u_ser, f, N);                  // Инициализация краевых условий и правой части уравнения
+    Init(u_ser, f, N);                 
     start_time = omp_get_wtime();
-    icnt = Calc_ser(u_ser, f, N, eps);  // Вызов функции расчета по методу Гаусса-Зейделя
+    icnt = Calc_ser(u_ser, f, N, eps);  
     end_time = omp_get_wtime();
     stime = end_time - start_time;
     cout << "Vremya resheniya = " << stime << " sec" << endl;
     cout << "Kolichestvo iteratsiy = " << icnt << endl;
     cout << "Rezultaty:\n";
-    Output(u_ser, N);                   // Вывод результатов на экран
-
-    //  Последовательная блочная реализация
+    Output(u_ser, N);                  
     cout << "\n\t*** Blochnaya posledovatelnaya versiya ***\n";
-    Init(u_blk, f, N);                  // Инициализация краевых условий и правой части
+    Init(u_blk, f, N);                  
     start_time = omp_get_wtime();
-    icnt = Calc_blk(u_blk, f, N, eps);  // Вызов блочной функции расчета
+    icnt = Calc_blk(u_blk, f, N, eps); 
     end_time = omp_get_wtime();
     stime = end_time - start_time;
     cout << "Vremya resheniya = " << stime << " sec" << endl;
@@ -69,7 +64,7 @@ int main(int argc, char** argv)
     cout << "Rezultaty:\n";
     Output(u_blk, N);
 
-    // Проверка совпадения с последовательной версией
+
     if (CompareResults(u_ser, u_blk, N)) {
         cout << "+++ OK! Blochnye rezultaty sovpadayut s posledovatelnymi +++" << endl;
     }
@@ -77,11 +72,11 @@ int main(int argc, char** argv)
         cout << "!!! OSHIBKA !!! Blochnye rezultaty NE sovpadayut s posledovatelnymi !!!" << endl;
     }
 
-    // Параллельная реализация (блочная)
-    cout << "\n\t*** Parallelnaya versiya ***\n";
-    Init(u_par, f, N);                  // Инициализация краевых условий и правой части
+  
+    cout << "\n\t*** Parallelnaya versiya (parallel for) ***\n";
+    Init(u_par, f, N);                  
     start_time = omp_get_wtime();
-    icnt = Calc_par(u_par, f, N, eps);  // Вызов параллельной функции расчета
+    icnt = Calc_par(u_par, f, N, eps); 
     end_time = omp_get_wtime();
     stime = end_time - start_time;
     cout << "Vremya resheniya = " << stime << " sec" << endl;
@@ -89,12 +84,32 @@ int main(int argc, char** argv)
     cout << "Rezultaty:\n";
     Output(u_par, N);
 
-    // Проверка совпадения с последовательной блочной версией
+   
     if (CompareResults(u_blk, u_par, N)) {
-        cout << "+++ OK! Parallelnye rezultaty sovpadayut s blochnymi posledovatelnymi +++" << endl;
+        cout << "+++ OK! Parallelnye rezultaty (for) sovpadayut s blochnymi posledovatelnymi +++" << endl;
     }
     else {
-        cout << "!!! OSHIBKA !!! Parallelnye rezultaty NE sovpadayut s blochnymi posledovatelnymi !!!" << endl;
+        cout << "!!! OSHIBKA !!! Parallelnye rezultaty (for) NE sovpadayut s blochnymi posledovatelnymi !!!" << endl;
+    }
+
+  
+    cout << "\n\t*** Parallelnaya versiya (omp task) ***\n";
+    Init(u_par_tasks, f, N);           
+    start_time = omp_get_wtime();
+    icnt = Calc_par_tasks(u_par_tasks, f, N, eps); 
+    end_time = omp_get_wtime();
+    stime = end_time - start_time;
+    cout << "Vremya resheniya = " << stime << " sec" << endl;
+    cout << "Kolichestvo iteratsiy = " << icnt << endl;
+    cout << "Rezultaty:\n";
+    Output(u_par_tasks, N);
+
+
+    if (CompareResults(u_blk, u_par_tasks, N)) {
+        cout << "+++ OK! Parallelnye rezultaty (task) sovpadayut s blochnymi posledovatelnymi +++" << endl;
+    }
+    else {
+        cout << "!!! OSHIBKA !!! Parallelnye rezultaty (task) NE sovpadayut s blochnymi posledovatelnymi !!!" << endl;
     }
 
     // Освобождение памяти массивов
@@ -104,13 +119,13 @@ int main(int argc, char** argv)
     delete_arr(u_ser, N + 2);
     delete_arr(u_blk, N + 2);
     delete_arr(u_par, N + 2);
+    delete_arr(u_par_tasks, N + 2);
     delete_arr(u, N + 2);  // исходный массив u не использовался
 
     return 0;
 }
 
-// Последовательная функция, реализующая алгоритм Гаусса-Зейделя
-// Входные параметры: массив неизвестных и краевых значений, массив правых частей, количество точек сетки по каждому направлению, точность вычислений
+
 int Calc_ser(double** u, double** f, int N, double eps)
 {
     double max;                // Максимальная ошибка на итерации
@@ -142,7 +157,7 @@ int Calc_blk(double** u, double** f, int N, double eps)
     double h = 1.0 / (N + 1);
     int icnt = 0;
 
-    const int BlockSize = 20;  // Размер блока
+    const int BlockSize = 40;  // Размер блока
     int bcnt;                  // Количество блоков в ряд
 
     if (N % BlockSize == 0) // Если количество точек по каждому из направлений сетки делится нацело на размер блока, то проводятся вычисления
@@ -203,10 +218,10 @@ int Calc_par(double** u, double** f, int N, double eps)
     double h = 1.0 / (N + 1);
     int icnt = 0;
 
-    const int BlockSize = 100;  // Размер блока
+    const int BlockSize = 40;  // Размер блока
     int bcnt;                  // Количество блоков в ряд
 
-    if (N % BlockSize == 0) // Если количество точек по каждому из направлений сетки делится нацело на размер блока, то проводятся вычисления
+    if (N % BlockSize == 0) 
     {
         bcnt = N / BlockSize;
 
@@ -215,10 +230,8 @@ int Calc_par(double** u, double** f, int N, double eps)
             icnt++;
             max = 0;
 
-            // Волновая схема обхода блоков с параллелизацией внутри диагонали
             for (int diag = 0; diag < 2 * bcnt - 1; diag++)
             {
-                // Параллельно обрабатываем все блоки на текущей диагонали
 #pragma omp parallel for reduction(max:max) schedule(dynamic)
                 for (int i_block = 0; i_block < bcnt; i_block++)
                 {
@@ -227,7 +240,6 @@ int Calc_par(double** u, double** f, int N, double eps)
                     // Проверяем, что j_block в допустимых пределах
                     if (j_block >= 0 && j_block < bcnt)
                     {
-                        // Обрабатываем блок (i_block, j_block)
                         int i_start = i_block * BlockSize + 1;
                         int i_end = (i_block + 1) * BlockSize;
                         int j_start = j_block * BlockSize + 1;
@@ -257,7 +269,99 @@ int Calc_par(double** u, double** f, int N, double eps)
     return icnt;
 }
 
-// Функция выделения памяти под 2D массив
+
+int Calc_par_tasks(double** u, double** f, int N, double eps)
+{
+    double max;
+    double h = 1.0 / (N + 1);
+    int icnt = 0;
+
+    const int BlockSize = 40;  // Размер блока
+    int bcnt;                  // Количество блоков в ряд
+
+    if (N % BlockSize == 0)
+    {
+        bcnt = N / BlockSize;
+
+        do
+        {
+            icnt++;
+            max = 0;
+
+            // Волновая схема обхода блоков
+            for (int diag = 0; diag < 2 * bcnt - 1; diag++)
+            {
+                double* local_maxs = new double[bcnt];
+                int* block_indices = new int[bcnt];
+                int blocks_count = 0;
+
+                for (int i_block = 0; i_block < bcnt; i_block++)
+                {
+                    int j_block = diag - i_block;
+                    if (j_block >= 0 && j_block < bcnt)
+                    {
+                        block_indices[blocks_count] = i_block;
+                        local_maxs[blocks_count] = 0.0;
+                        blocks_count++;
+                    }
+                }
+
+                // Параллельное выполнение задач для блоков на диагонали
+#pragma omp parallel
+                {
+#pragma omp single
+                    {
+                        for (int idx = 0; idx < blocks_count; idx++)
+                        {
+                            int i_block = block_indices[idx];
+                            int j_block = diag - i_block;
+
+                            int i_start = i_block * BlockSize + 1;
+                            int i_end = (i_block + 1) * BlockSize;
+                            int j_start = j_block * BlockSize + 1;
+                            int j_end = (j_block + 1) * BlockSize;
+
+                            
+#pragma omp task firstprivate(i_start, i_end, j_start, j_end, idx) shared(local_maxs, u, f, h)
+                            {
+                                double local_max = 0.0;
+                                for (int i = i_start; i <= i_end; i++)
+                                {
+                                    for (int j = j_start; j <= j_end; j++)
+                                    {
+                                        double old = u[i][j];
+                                        u[i][j] = 0.25 * (u[i - 1][j] + u[i + 1][j] + u[i][j - 1] + u[i][j + 1] - h * h * f[i - 1][j - 1]);
+                                        double diff = fabs(u[i][j] - old);
+                                        if (diff > local_max) local_max = diff;
+                                    }
+                                }
+                                local_maxs[idx] = local_max;
+                            }
+                        }
+                    }
+                }
+
+                // Находим максимальную ошибку среди всех блоков на диагонали
+                for (int idx = 0; idx < blocks_count; idx++)
+                {
+                    if (local_maxs[idx] > max) max = local_maxs[idx];
+                }
+
+                delete[] local_maxs;
+                delete[] block_indices;
+            }
+        } while (max > eps);
+    }
+    else
+    {
+        cout << "OSHI BKA! N ne delitsya na BlockSize!" << endl;
+        exit(1);
+    }
+
+    return icnt;
+}
+
+
 double** new_arr(int N)
 {
     double** f = new double* [N];
