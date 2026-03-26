@@ -16,8 +16,6 @@ int main(int argc, char** argv) {
     // Определяем размер локальной части для каждого процесса
     int local_size = N / world_size;
     int remainder = N % world_size;
-
-    // Распределение: первые remainder процессов получают на 1 элемент больше
     int my_local_size = local_size + (world_rank < remainder ? 1 : 0);
 
     // Векторы для хранения локальных частей
@@ -29,7 +27,6 @@ int main(int argc, char** argv) {
     std::vector<int> send_counts(world_size), displs(world_size);
 
     if (world_rank == 0) {
-        // Генерация полных векторов
         std::vector<int> full_vec1(N);
         std::vector<int> full_vec2(N);
 
@@ -44,7 +41,7 @@ int main(int argc, char** argv) {
             full_vec2[i] = 1 + std::rand() % 100;
         }
 
-        // Подготовка массивов для MPI_Scatterv
+        // Подготовка массивов
         int offset = 0;
         for (int i = 0; i < world_size; ++i) {
             int size_i = local_size + (i < remainder ? 1 : 0);
@@ -53,8 +50,7 @@ int main(int argc, char** argv) {
             offset += size_i;
         }
 
-        // Копируем данные для рассылки (можно было бы использовать исходные векторы напрямую,
-        // но для наглядности выделим send_vec1 и send_vec2)
+
         send_vec1 = full_vec1;
         send_vec2 = full_vec2;
     }
@@ -85,9 +81,9 @@ int main(int argc, char** argv) {
 
     // Вывод результата процессом 0
     if (world_rank == 0) {
-        std::cout << "Длина векторов: " << N << std::endl;
-        std::cout << "Количество процессов: " << world_size << std::endl;
-        std::cout << "Скалярное произведение: " << global_dot << std::endl;
+        std::cout << "Dlinna vectorov: " << N << std::endl;
+        std::cout << "kol-vo processov: " << world_size << std::endl;
+        std::cout << "skalyarnoe proizvedenie: " << global_dot << std::endl;
 
         // Дополнительная проверка: вычисление полного произведения для верификации
         long long check_dot = 0;
@@ -96,7 +92,7 @@ int main(int argc, char** argv) {
         std::srand(static_cast<unsigned>(std::time(nullptr))); // В реальности нужно сохранить seed
         for (int i = 0; i < N; ++i) full_vec2[i] = 1 + std::rand() % 100;
         for (int i = 0; i < N; ++i) check_dot += static_cast<long long>(full_vec1[i]) * full_vec2[i];
-        std::cout << "Проверка (вычислено на 0 процессе): " << check_dot << std::endl;
+        std::cout << "Proverka: " << check_dot << std::endl;
     }
 
     MPI_Finalize();
