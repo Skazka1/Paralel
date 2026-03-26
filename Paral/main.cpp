@@ -172,7 +172,6 @@ int main(int argc, char** argv)
     // Определение размера задачи
     int n = 840;  // размер кратен 2, 3, 4, 5, 6, 7, 8 для упрощения разбиения
 
-    // Вычисляем размер подзадачи для каждого процесса
     int n1 = n / size;
     int remainder = n % size;
 
@@ -197,13 +196,13 @@ int main(int argc, char** argv)
     }
 
     // Выделение памяти 
-    double* A = NULL;  // матрица как одномерный массив (только на процессе 0)
+    double* A = NULL;
     double* x = alloc_array(n);
     double* y = alloc_array(n);
     double* x_sequential = alloc_array(n);
     double* y_sequential = alloc_array(n);
 
-    // Инициализация массивов
+ 
     for (int i = 0; i < n; i++) {
         x[i] = 0;
         y[i] = 0;
@@ -211,12 +210,10 @@ int main(int argc, char** argv)
         y_sequential[i] = 0;
     }
 
-    // Заполнение матрицы А и вектора х (только на процессе 0)
     if (rank == 0)
     {
         A = alloc_array(n * n);
 
-        // Инициализация генератора случайных чисел
         srand(time(NULL));
 
         for (int i = 0; i < n; i++)
@@ -228,7 +225,6 @@ int main(int argc, char** argv)
             x[i] = (double)rand() / RAND_MAX;
             y[i] = 0;
 
-            // Копируем данные для последовательной версии
             x_sequential[i] = x[i];
             y_sequential[i] = 0;
         }
@@ -268,18 +264,7 @@ int main(int argc, char** argv)
             cout << "Results differ!" << endl;
         }
 
-        // Вывод первых нескольких элементов для проверки
-        cout << endl << "First 10 elements of result vector:" << endl;
-        cout << "Sequential: ";
-        for (int i = 0; i < min(10, n); i++) {
-            cout << y_sequential[i] << " ";
-        }
-        cout << endl << "Parallel:   ";
-        for (int i = 0; i < min(10, n); i++) {
-            cout << y[i] << " ";
-        }
-        cout << endl;
-
+  
         cout << endl << "The Program is RUN on " << size << " CPU(s)" << endl;
         cout << "Final y[0] = " << y[0] << endl;
 
