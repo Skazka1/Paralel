@@ -11,7 +11,12 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-    const int N = 23; // Длина векторов (может быть не кратна количеству процессов)
+    double start_time = 0.0;
+    if (world_rank == 0) {
+        start_time = MPI_Wtime();
+    }
+
+    const int N = 300000000; // Длина векторов (может быть не кратна количеству процессов)
 
     // Определяем размер локальной части для каждого процесса
     int local_size = N / world_size;
@@ -50,7 +55,6 @@ int main(int argc, char** argv) {
             offset += size_i;
         }
 
-
         send_vec1 = full_vec1;
         send_vec2 = full_vec2;
     }
@@ -79,17 +83,21 @@ int main(int argc, char** argv) {
     long long global_dot = 0;
     MPI_Reduce(&local_dot, &global_dot, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    // Вывод результата процессом 0
+    // Засекаем время окончания выполнения (только на процессе 0)
     if (world_rank == 0) {
+        double end_time = MPI_Wtime();
+        double total_time = end_time - start_time;
+
         std::cout << "Dlinna vectorov: " << N << std::endl;
         std::cout << "kol-vo processov: " << world_size << std::endl;
         std::cout << "skalyarnoe proizvedenie: " << global_dot << std::endl;
+        std::cout << "Vremya vypolneniya programmy: " << total_time << " sec" << std::endl;
 
         // Дополнительная проверка: вычисление полного произведения для верификации
         long long check_dot = 0;
         std::vector<int> full_vec1(N), full_vec2(N);
         for (int i = 0; i < N; ++i) full_vec1[i] = i + 1;
-        std::srand(static_cast<unsigned>(std::time(nullptr))); // В реальности нужно сохранить seed
+        std::srand(static_cast<unsigned>(std::time(nullptr)));
         for (int i = 0; i < N; ++i) full_vec2[i] = 1 + std::rand() % 100;
         for (int i = 0; i < N; ++i) check_dot += static_cast<long long>(full_vec1[i]) * full_vec2[i];
         std::cout << "Proverka: " << check_dot << std::endl;
