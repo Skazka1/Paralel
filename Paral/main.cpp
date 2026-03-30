@@ -7,21 +7,18 @@
 
 using namespace std;
 
-// Функция выделения памяти под вектор
 double* alloc_array(int n)
 {
     double* a = new double[n];
     return a;
 }
 
-// Функция освобождения памяти 
 int free_array(double* a, int n)
 {
     delete[] a;
     return 0;
 }
 
-// Параллельная функция умножения матрицы на вектор
 int mult_mv(int n, double* A, double* x, double* y, int rank, int size)
 {
     // Определение числа доступных процессов
@@ -58,7 +55,6 @@ int mult_mv(int n, double* A, double* x, double* y, int rank, int size)
     double* local_A = new double[local_n * n];
     double* local_y = new double[local_n];
 
-    // Распределяем части матрицы по процессам
     MPI_Scatterv(A, sendcounts, displs, MPI_DOUBLE,
         local_A, local_n * n, MPI_DOUBLE,
         0, MPI_COMM_WORLD);
@@ -78,10 +74,8 @@ int mult_mv(int n, double* A, double* x, double* y, int rank, int size)
         }
     }
 
-    // Умножение матрицы на вектор 100 раз
     for (int k = 0; k < 100; k++)
     {
-        // Рассылаем вектор x всем процессам
         MPI_Bcast(x, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         // Вычисляем локальную часть результата
@@ -94,12 +88,10 @@ int mult_mv(int n, double* A, double* x, double* y, int rank, int size)
             }
         }
 
-        // Собираем результаты на процессе 0
         MPI_Gatherv(local_y, local_n, MPI_DOUBLE,
             y, recvcounts, recvdispls, MPI_DOUBLE,
             0, MPI_COMM_WORLD);
 
-        // На процессе 0 обновляем вектор x для следующей итерации
         if (rank == 0) {
             for (int i = 0; i < n; i++) {
                 x[i] = y[i];
@@ -121,8 +113,8 @@ int mult_mv(int n, double* A, double* x, double* y, int rank, int size)
     return 0;
 }
 
-// Последовательная версия для сравнения
-int mult_mv_sequential(int n, double* A, double* x, double* y)
+// Изменяем функцию, чтобы она возвращала время выполнения
+double mult_mv_sequential(int n, double* A, double* x, double* y)
 {
     double start_time = MPI_Wtime();
 
@@ -143,13 +135,12 @@ int mult_mv_sequential(int n, double* A, double* x, double* y)
     }
 
     double end_time = MPI_Wtime();
-    cout << "Sequential execution time: " 
-        << (end_time - start_time) << " seconds" << endl;
-
-    return 0;
+    double elapsed = end_time - start_time;
+    cout << "Sequential execution time: "
+        << elapsed << " seconds" << endl;
+    return elapsed;
 }
 
-// Функция для сравнения результатов
 bool compare_results(double* y1, double* y2, int n, double epsilon = 1e-8)
 {
     for (int i = 0; i < n; i++) {
@@ -163,19 +154,19 @@ bool compare_results(double* y1, double* y2, int n, double epsilon = 1e-8)
 
 int main(int argc, char** argv)
 {
-    // Инициализация MPI
     int rank, size;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Определение размера задачи
-    int n = 840;  // размер кратен 2, 3, 4, 5, 6, 7, 8 для упрощения разбиения
+    int n = 840;
 
     int n1 = n / size;
     int remainder = n % size;
 
     // Определяем локальный размер для текущего процесса
+
+
     int local_n = n1;
     if (rank < remainder) {
         local_n++;
@@ -202,13 +193,15 @@ int main(int argc, char** argv)
     double* x_sequential = alloc_array(n);
     double* y_sequential = alloc_array(n);
 
- 
+    // Инициализация нулями
     for (int i = 0; i < n; i++) {
         x[i] = 0;
         y[i] = 0;
         x_sequential[i] = 0;
         y_sequential[i] = 0;
     }
+
+    double sequential_time = 0.0;  // для хранения времени последовательной версии
 
     if (rank == 0)
     {
@@ -230,29 +223,28 @@ int main(int argc, char** argv)
         }
 
         cout << "=== SEQUENTIAL VERSION ===" << endl;
-        // Выполнение последовательной версии
-        mult_mv_sequential(n, A, x_sequential, y_sequential);
+        sequential_time = mult_mv_sequential(n, A, x_sequential, y_sequential);
         cout << endl;
 
         cout << "=== PARALLEL VERSION ===" << endl;
     }
 
-    // Синхронизация перед параллельными вычислениями
     MPI_Barrier(MPI_COMM_WORLD);
-
-    // Замер времени начала параллельных вычислений
     double start_time = MPI_Wtime();
-
-    // Выполнение параллельной версии
     mult_mv(n, A, x, y, rank, size);
-
-    // Замер времени окончания параллельных вычислений
     double end_time = MPI_Wtime();
 
-    // Вывод времени выполнения на процессе 0
     if (rank == 0) {
+        double parallel_time = end_time - start_time;
         cout << "Parallel execution time: "
-            << (end_time - start_time) << " seconds" << endl;
+            << parallel_time << " seconds" << endl;
+
+        // Вычисляем ускорение и эффективность
+        double speedup = sequential_time / parallel_time;
+        double efficiency = speedup / size;
+
+        cout << "Speedup: " << speedup << endl;
+        cout << "Efficiency: " << efficiency << endl;
 
         cout << endl << "=== RESULTS COMPARISON ===" << endl;
 
@@ -264,15 +256,12 @@ int main(int argc, char** argv)
             cout << "Results differ!" << endl;
         }
 
-  
         cout << endl << "The Program is RUN on " << size << " CPU(s)" << endl;
         cout << "Final y[0] = " << y[0] << endl;
 
-        // Освобождаем память матрицы A
         free_array(A, n * n);
     }
 
-    // Освобождение памяти
     free_array(x, n);
     free_array(y, n);
     free_array(x_sequential, n);
