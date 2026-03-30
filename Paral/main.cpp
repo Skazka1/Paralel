@@ -239,7 +239,6 @@ int main(int argc, char** argv)
         cout << "Parallel execution time: "
             << parallel_time << " seconds" << endl;
 
-        // Вычисляем ускорение и эффективность
         double speedup = sequential_time / parallel_time;
         double efficiency = speedup / size;
 
@@ -247,8 +246,6 @@ int main(int argc, char** argv)
         cout << "Efficiency: " << efficiency << endl;
 
         cout << endl << "=== RESULTS COMPARISON ===" << endl;
-
-        // Сравнение результатов
         if (compare_results(y_sequential, y, n)) {
             cout << "Results match with high precision!" << endl;
         }
@@ -257,7 +254,6 @@ int main(int argc, char** argv)
         }
 
         cout << endl << "The Program is RUN on " << size << " CPU(s)" << endl;
-        cout << "Final y[0] = " << y[0] << endl;
 
         free_array(A, n * n);
     }
